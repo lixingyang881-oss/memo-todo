@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>MEMO TO-DO</title>
+
+    <style>
+        /* =============== 全局 =============== */
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          background: linear-gradient(180deg, #eef1f5 0%, #e3e7ee 100%);
+          height: 100vh;
+          overflow: hidden;
+        }
+
+        /* =============== 顶部标题栏 =============== */
+        header {
+          text-align: center;
+          padding: 22px 0 14px;
+          font-size: 26px;
+          font-weight: 600;
+          color: #2b2b2b;
+          letter-spacing: 1px;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        header .sub {
+          font-size: 13px;
+          color: #7a7a7a;
+          margin-top: 3px;
+        }
+
+        /* =============== 中心卡片（创建新 Memo） =============== */
+        .center-card {
+          position: absolute;
+          top: 15%;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 360px;
+          padding: 20px;
+          border-radius: 18px;
+
+          background: rgba(255,255,255,0.6);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+        }
+
+        .center-card h3 {
+          font-size: 18px;
+          margin-bottom: 12px;
+          font-weight: 600;
+          color: #222;
+        }
+
+        .input, textarea, select {
+          width: 100%;
+          padding: 8px 10px;
+          margin-top: 8px;
+          border-radius: 10px;
+          border: 1px solid #d0d4da;
+          font-size: 14px;
+          background: rgba(255,255,255,0.85);
+        }
+
+        /* 文本框 */
+        textarea {
+          height: 80px;
+          resize: none;
+        }
+
+        /* 两个按钮 */
+        .btn-row {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 14px;
+        }
+
+        .btn {
+          flex: 1;
+          padding: 9px 0;
+          border-radius: 10px;
+          text-align: center;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          border: none;
+        }
+
+        .cancel {
+          background: rgba(255,255,255,0.6);
+          border: 1px solid #ccc;
+        }
+
+        .save {
+          background: #3a8bff;
+          color: white;
+          margin-left: 10px;
+        }
+
+        /* =============== 底部卡片扇形容器 =============== */
+        .card-fan-container {
+          position: absolute;
+          bottom: -40px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 900px;
+          height: 300px;
+          pointer-events: none;
+        }
+
+        /* 单张卡片（扇形旧 Memo） */
+        .memo-card {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          width: 150px;
+          height: 200px;
+
+          background: rgba(255,255,255,0.55);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-radius: 16px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+
+          transform-origin: bottom center;
+          pointer-events: auto;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+          padding: 12px;
+        }
+
+        .memo-card:hover {
+          transform: scale(1.22) translateY(-20px) rotate(var(--angle));
+          box-shadow: 0 10px 28px rgba(0,0,0,0.15);
+          z-index: 10;
+        }
+
+        .memo-title {
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: #2b2b2b;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+
+        .memo-tags {
+          font-size: 12px;
+          color: #666;
+          margin: 6px 0;
+        }
+
+        .memo-date {
+          font-size: 12px;
+          color: #888;
+        }
+
+        .del-btn {
+          margin-top: 8px;
+          padding: 5px 0;
+          background: #ff5f5f;
+          border-radius: 10px;
+          color: #fff;
+          font-size: 12px;
+          cursor: pointer;
+          text-align: center;
+        }
+    </style>
+</head>
+
+
+<body>
+
+<header>
+    MEMO TO-DO
+    <div class="sub">CPXZ3M / I1SFUW</div>
+</header>
+
+<!-- ================= 中央创建卡片 ================= -->
+<div class="center-card">
+    <h3>New Memo</h3>
+
+    <input id="title" class="input" placeholder="标题（必填）" />
+
+    <textarea id="desc" placeholder="内容描述..."></textarea>
+
+    <input id="tags" class="input" placeholder="标签（如：School, Work）" />
+
+    <input id="due" type="date" class="input" />
+
+    <select id="important" class="input">
+        <option value="false">不重要</option>
+        <option value="true">重要</option>
+    </select>
+
+    <div class="btn-row">
+        <div class="btn cancel" onclick="resetForm()">取消</div>
+        <div class="btn save" onclick="submitForm()">保存</div>
+    </div>
+</div>
+
+<!-- ================= 卡片扇形区域 ================= -->
+<div class="card-fan-container" id="fan"></div>
+
+
+
+<script>
+    // =============== 全局 ===============
+    let memos = [];
+    let editingId = null;
+
+    // =============== 访问后端 API ===============
+    async function loadData() {
+      const res = await fetch('http://localhost:8080/memos');
+      memos = await res.json();
+      renderFan();
+    }
+
+    async function submitForm() {
+      let data = {
+        title: document.getElementById("title").value.trim(),
+        desc: document.getElementById("desc").value.trim(),
+        tags: document.getElementById("tags").value.split(",").map(x => x.trim()).filter(x => x),
+        due: document.getElementById("due").value,
+        important: document.getElementById("important").value === "true"
+      };
+
+      if (!data.title) return alert("标题不能为空");
+
+      if (editingId) {
+        await fetch(`http://localhost:8080/memos/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } else {
+        await fetch("http://localhost:8080/memos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      }
+
+      editingId = null;
+      resetForm();
+      loadData();
+    }
+
+    function resetForm() {
+      document.getElementById("title").value = "";
+      document.getElementById("desc").value = "";
+      document.getElementById("tags").value = "";
+      document.getElementById("due").value = "";
+      document.getElementById("important").value = "false";
+    }
+
+    // =============== 删除 Memo ===============
+    async function deleteMemo(id) {
+      await fetch(`http://localhost:8080/memos/${id}`, { method: "DELETE" });
+      loadData();
+    }
+
+    // =============== 扇形布局渲染 ===============
+    function renderFan() {
+      const fan = document.getElementById("fan");
+      fan.innerHTML = "";
+
+      let total = memos.length;
+      if (total === 0) return;
+
+      let startA = -25;
+      let endA = 25;
+
+      memos.forEach((m, i) => {
+        let angle = (startA + i * (endA - startA) / (total - 1)) + "deg";
+
+        const card = document.createElement("div");
+        card.className = "memo-card";
+        card.style.setProperty("--angle", angle);
+        card.style.transform = `rotate(${angle})`;
+
+        card.innerHTML = `
+          <div class="memo-title">${m.title}</div>
+          <div class="memo-tags">${m.tags.join(", ")}</div>
+          <div class="memo-date">${m.due || "无到期日"}</div>
+          <div class="del-btn" onclick="deleteMemo('${m.id}')">删除</div>
+        `;
+
+        fan.appendChild(card);
+      });
+    }
+
+    loadData();
+</script>
+
+</body>
+</html>
