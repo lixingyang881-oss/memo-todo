@@ -40,9 +40,8 @@ public class MemoStore {
     public synchronized void update(String id, Memo updated) {
         List<Memo> all = loadAll();
         for (int i = 0; i < all.size(); i++) {
-            if (all.get(i).id.equals(id)) {
+            if (all.get(i).getId().equals(id)) {
                 all.set(i, updated);
-                break;
             }
         }
         saveAll(all);
@@ -50,7 +49,7 @@ public class MemoStore {
 
     public synchronized void delete(String id) {
         List<Memo> all = loadAll();
-        all.removeIf(m -> m.id.equals(id));
+        all.removeIf(m -> m.getId().equals(id));
         saveAll(all);
     }
 }

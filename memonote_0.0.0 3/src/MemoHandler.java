@@ -46,8 +46,8 @@ public class MemoHandler implements HttpHandler {
     private void handleCreate(HttpExchange ex) throws IOException {
         String body = new String(ex.getRequestBody().readAllBytes());
         Memo m = gson.fromJson(body, Memo.class);
-        m.id = UUID.randomUUID().toString();
-        m.created = new Date().toString();
+        m.setId(UUID.randomUUID().toString());
+        m.setCreated(new Date().toString());
         store.add(m);
         sendJson(ex, 200, gson.toJson(m));
     }
@@ -55,7 +55,7 @@ public class MemoHandler implements HttpHandler {
     private void handleUpdate(HttpExchange ex, String id) throws IOException {
         String body = new String(ex.getRequestBody().readAllBytes());
         Memo m = gson.fromJson(body, Memo.class);
-        m.id = id;
+        m.setId(id);
         store.update(id, m);
         sendJson(ex, 200, gson.toJson(m));
     }

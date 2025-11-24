@@ -37,20 +37,24 @@
           margin-top: 3px;
         }
 
-        /* =============== 中心卡片（创建新 Memo） =============== */
-        .center-card {
+        /* =============== 中心卡片（包一层，负责定位） =============== */
+        .center-card-wrap {
           position: absolute;
           top: 15%;
           left: 50%;
           transform: translateX(-50%);
+        }
+
+        /* 真正的主卡片，只负责样式和动画，不再负责居中 */
+        .center-card {
           width: 360px;
           padding: 20px;
           border-radius: 18px;
-
           background: rgba(255,255,255,0.6);
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
           box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+          transform-origin: center center;
         }
 
         .center-card h3 {
@@ -134,6 +138,7 @@
           pointer-events: auto;
           transition: transform 0.25s ease, box-shadow 0.25s ease;
           padding: 12px;
+          opacity: 1;
         }
 
         .memo-card:hover {
@@ -173,9 +178,55 @@
           cursor: pointer;
           text-align: center;
         }
-    </style>
-</head>
 
+        /* =============== 重要 Memo：金色高亮，不改变位置 =============== */
+        .memo-card.important {
+          border: 2px solid #ffcc55;
+          box-shadow: 0 0 18px rgba(255, 210, 80, 0.55); /* 柔金光 */
+          background: rgba(255, 250, 225, 0.55);        /* 柔和暖白 */
+        }
+
+        /* =============== 主卡片果冻弹跳动画 =============== */
+        @keyframes bounceAnim {
+          0%   { transform: scale(1); }
+          30%  { transform: scale(0.92); }
+          60%  { transform: scale(1.05); }
+          80%  { transform: scale(0.98); }
+          100% { transform: scale(1); }
+        }
+
+        .center-card.bounce {
+          animation: bounceAnim 0.6s cubic-bezier(.34,1.56,.64,1);
+        }
+
+        /* =============== 新卡片插入动画（从中心飞到扇形位置） =============== */
+        .memo-card.insert-start {
+          opacity: 0;
+          transform: scale(0.4) translateY(-220px) rotate(0deg) !important;
+        }
+
+        .memo-card.insert-end {
+          opacity: 1;
+          transform: rotate(var(--angle)) scale(1) translateY(0) !important;
+          transition: transform 1s cubic-bezier(.25,.8,.25,1),
+                      opacity 1s ease;
+        }
+
+        /* =============== 删除撕裂 / 烟花效果 =============== */
+        @keyframes deleteExplosion {
+          0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+          50%  { opacity: 0.5; transform: scale(1.3) rotate(10deg); }
+          100% { opacity: 0; transform: scale(0.4) rotate(-25deg); }
+        }
+
+        .memo-card.delete-anim {
+          animation: deleteExplosion 0.5s ease forwards;
+        }
+    </style>
+
+    <!-- 仍然使用外部 JS 文件 -->
+    <script src="frontend.js"></script>
+</head>
 
 <body>
 
@@ -185,121 +236,32 @@
 </header>
 
 <!-- ================= 中央创建卡片 ================= -->
-<div class="center-card">
-    <h3>New Memo</h3>
+<div class="center-card-wrap">
+    <div class="center-card">
+        <h3>New Memo</h3>
 
-    <input id="title" class="input" placeholder="标题（必填）" />
+        <input id="title" class="input" placeholder="标题（必填）" />
 
-    <textarea id="desc" placeholder="内容描述..."></textarea>
+        <textarea id="desc" placeholder="内容描述..."></textarea>
 
-    <input id="tags" class="input" placeholder="标签（如：School, Work）" />
+        <input id="tags" class="input" placeholder="标签（如：School, Work）" />
 
-    <input id="due" type="date" class="input" />
+        <input id="due" type="date" class="input" />
 
-    <select id="important" class="input">
-        <option value="false">不重要</option>
-        <option value="true">重要</option>
-    </select>
+        <select id="important" class="input">
+            <option value="false">不重要</option>
+            <option value="true">重要</option>
+        </select>
 
-    <div class="btn-row">
-        <div class="btn cancel" onclick="resetForm()">取消</div>
-        <div class="btn save" onclick="submitForm()">保存</div>
+        <div class="btn-row">
+            <div class="btn cancel" onclick="resetForm()">取消</div>
+            <div class="btn save" onclick="submitForm()">保存</div>
+        </div>
     </div>
 </div>
 
 <!-- ================= 卡片扇形区域 ================= -->
 <div class="card-fan-container" id="fan"></div>
-
-
-
-<script>
-    // =============== 全局 ===============
-    let memos = [];
-    let editingId = null;
-
-    // =============== 访问后端 API ===============
-    async function loadData() {
-      const res = await fetch('http://localhost:8080/memos');
-      memos = await res.json();
-      renderFan();
-    }
-
-    async function submitForm() {
-      let data = {
-        title: document.getElementById("title").value.trim(),
-        desc: document.getElementById("desc").value.trim(),
-        tags: document.getElementById("tags").value.split(",").map(x => x.trim()).filter(x => x),
-        due: document.getElementById("due").value,
-        important: document.getElementById("important").value === "true"
-      };
-
-      if (!data.title) return alert("标题不能为空");
-
-      if (editingId) {
-        await fetch(`http://localhost:8080/memos/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } else {
-        await fetch("http://localhost:8080/memos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      }
-
-      editingId = null;
-      resetForm();
-      loadData();
-    }
-
-    function resetForm() {
-      document.getElementById("title").value = "";
-      document.getElementById("desc").value = "";
-      document.getElementById("tags").value = "";
-      document.getElementById("due").value = "";
-      document.getElementById("important").value = "false";
-    }
-
-    // =============== 删除 Memo ===============
-    async function deleteMemo(id) {
-      await fetch(`http://localhost:8080/memos/${id}`, { method: "DELETE" });
-      loadData();
-    }
-
-    // =============== 扇形布局渲染 ===============
-    function renderFan() {
-      const fan = document.getElementById("fan");
-      fan.innerHTML = "";
-
-      let total = memos.length;
-      if (total === 0) return;
-
-      let startA = -25;
-      let endA = 25;
-
-      memos.forEach((m, i) => {
-        let angle = (startA + i * (endA - startA) / (total - 1)) + "deg";
-
-        const card = document.createElement("div");
-        card.className = "memo-card";
-        card.style.setProperty("--angle", angle);
-        card.style.transform = `rotate(${angle})`;
-
-        card.innerHTML = `
-          <div class="memo-title">${m.title}</div>
-          <div class="memo-tags">${m.tags.join(", ")}</div>
-          <div class="memo-date">${m.due || "无到期日"}</div>
-          <div class="del-btn" onclick="deleteMemo('${m.id}')">删除</div>
-        `;
-
-        fan.appendChild(card);
-      });
-    }
-
-    loadData();
-</script>
 
 </body>
 </html>
