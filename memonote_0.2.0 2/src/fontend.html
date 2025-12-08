@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>MEMO TO-DO</title>
+
+    <style>
+        /* =============== 全局 =============== */
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          background: linear-gradient(180deg, #eef1f5 0%, #e3e7ee 100%);
+          height: 100vh;
+          overflow: hidden;
+        }
+
+        /* =============== 顶部标题栏 =============== */
+        header {
+          text-align: center;
+          padding: 22px 0 14px;
+          font-size: 26px;
+          font-weight: 600;
+          color: #2b2b2b;
+          letter-spacing: 1px;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        header .sub {
+          font-size: 13px;
+          color: #7a7a7a;
+          margin-top: 3px;
+        }
+
+        /* =============== 中心卡片（包一层，负责定位） =============== */
+        .center-card-wrap {
+          position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 20px; /* 让卡片永远离标题等距 */
+        }
+
+        /* 真正的主卡片，只负责样式和动画，不再负责居中 */
+        .center-card {
+          width: 360px;
+          padding: 20px;
+          border-radius: 18px;
+          background: rgba(255,255,255,0.6);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+          transform-origin: center center;
+        }
+
+        .center-card h3 {
+          font-size: 18px;
+          margin-bottom: 12px;
+          font-weight: 600;
+          color: #222;
+        }
+
+        .input, textarea, select {
+          width: 100%;
+          padding: 8px 10px;
+          margin-top: 8px;
+          border-radius: 10px;
+          border: 1px solid #d0d4da;
+          font-size: 14px;
+          background: rgba(255,255,255,0.85);
+        }
+
+        /* 文本框 */
+        textarea {
+          height: 80px;
+          resize: none;
+        }
+
+        /* 两个按钮 */
+        .btn-row {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 14px;
+        }
+
+        .btn {
+          flex: 1;
+          padding: 9px 0;
+          border-radius: 10px;
+          text-align: center;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          border: none;
+        }
+
+        .cancel {
+          background: rgba(255,255,255,0.6);
+          border: 1px solid #ccc;
+        }
+
+        .save {
+          background: #3a8bff;
+          color: white;
+          margin-left: 10px;
+        }
+
+        /* =============== 底部卡片扇形容器 =============== */
+        .card-fan-container {
+          position: absolute;
+          bottom: -40px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 900px;
+          height: 300px;
+          pointer-events: none;
+        }
+
+        /* 单张卡片（扇形旧 Memo） */
+        .memo-card {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          width: 150px;
+          height: 200px;
+
+          background: rgba(255,255,255,0.55);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-radius: 16px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+
+          transform-origin: bottom center;
+          pointer-events: auto;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+          padding: 12px;
+          opacity: 1;
+        }
+
+        .memo-card:hover {
+          transform: scale(1.22) translateY(-20px) rotate(var(--angle));
+          box-shadow: 0 10px 28px rgba(0,0,0,0.15);
+          z-index: 10;
+        }
+
+        .memo-title {
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: #2b2b2b;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+
+        .memo-tags {
+          font-size: 12px;
+          color: #666;
+          margin: 6px 0;
+        }
+
+        .memo-date {
+          font-size: 12px;
+          color: #888;
+        }
+
+        .del-btn {
+          margin-top: 8px;
+          padding: 5px 0;
+          background: #ff5f5f;
+          border-radius: 10px;
+          color: #fff;
+          font-size: 12px;
+          cursor: pointer;
+          text-align: center;
+        }
+
+        /* =============== 重要 Memo：金色高亮，不改变位置 =============== */
+        .memo-card.important {
+          border: 2px solid #ffcc55;
+          box-shadow: 0 0 18px rgba(255, 210, 80, 0.55); /* 柔金光 */
+          background: rgba(255, 250, 225, 0.55);        /* 柔和暖白 */
+        }
+
+        /* =============== 主卡片果冻弹跳动画 =============== */
+        @keyframes bounceAnim {
+          0%   { transform: scale(1); }
+          30%  { transform: scale(0.92); }
+          60%  { transform: scale(1.05); }
+          80%  { transform: scale(0.98); }
+          100% { transform: scale(1); }
+        }
+
+        .center-card.bounce {
+          animation: bounceAnim 0.6s cubic-bezier(.34,1.56,.64,1);
+        }
+
+        /* =============== 新卡片插入动画（从中心飞到扇形位置） =============== */
+        .memo-card.insert-start {
+          opacity: 0;
+          transform: scale(0.4) translateY(-220px) rotate(0deg) !important;
+        }
+
+        .memo-card.insert-end {
+          opacity: 1;
+          transform: rotate(var(--angle)) scale(1) translateY(0) !important;
+          transition: transform 1s cubic-bezier(.25,.8,.25,1),
+                      opacity 1s ease;
+        }
+
+        /* =============== 删除撕裂 / 烟花效果 =============== */
+        @keyframes deleteExplosion {
+          0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+          50%  { opacity: 0.5; transform: scale(1.3) rotate(10deg); }
+          100% { opacity: 0; transform: scale(0.4) rotate(-25deg); }
+        }
+
+        .memo-card.delete-anim {
+          animation: deleteExplosion 0.5s ease forwards;
+        }
+    </style>
+
+    <!-- 仍然使用外部 JS 文件 -->
+    <script src="frontend.js"></script>
+</head>
+
+
+<body>
+
+<header>
+    MEMO TO-DO
+    <div class="sub">CPXZ3M / I1SFUW</div>
+</header>
+
+
+<!-- ================= 搜索框 ================= -->
+<div style="
+    margin: 12px auto;
+    width: 360px;
+">
+    <input
+            id="searchInput"
+            class="input"
+            placeholder="搜索标题…"
+            oninput="handleSearch()"
+            style="height: 38px; font-size: 14px;"
+    />
+</div>
+
+<!-- ================= 中央创建卡片 ================= -->
+<div class="center-card-wrap">
+    <div class="center-card">
+        <h3>New Memo</h3>
+
+        <input id="title" class="input" placeholder="标题（必填）" />
+
+        <textarea id="desc" placeholder="内容描述..."></textarea>
+
+        <input id="tags" class="input" placeholder="标签（如：School, Work）" />
+
+        <input id="due" type="date" class="input" />
+
+        <select id="important" class="input">
+            <option value="false">不重要</option>
+            <option value="true">重要</option>
+        </select>
+
+        <div class="btn-row">
+            <div class="btn cancel" onclick="resetForm()">取消</div>
+            <div class="btn save" onclick="submitForm()">保存</div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 卡片扇形区域 ================= -->
+<div class="card-fan-container" id="fan"></div>
+
+</body>
+</html>
